@@ -80,6 +80,22 @@ describe('when there is initially some blogs saved', () => {
       expect(response.body.likes).toBe(0)
     })
     test('fails with status code 400 if data is invalid', async () => {
+      // eslint-disable-next-line no-unused-vars
+      const { url, ...newBlog0 } = helper.listWithOneBlog[0]
+      // eslint-disable-next-line no-unused-vars
+      const { title, ...newBlog1 } = helper.listWithOneBlog[0]
+
+      await api
+        .post('/api/blogs')
+        .send(newBlog0)
+        .expect(400)
+        .expect('Content-Type', /application\/json/)
+
+      await api
+        .post('/api/blogs')
+        .send(newBlog0)
+        .expect(400)
+        .expect('Content-Type', /application\/json/)
     })
   })
   describe('deletion of a blog', () => {
