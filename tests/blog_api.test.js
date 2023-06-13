@@ -67,6 +67,18 @@ describe('when there is initially some blogs saved', () => {
       expect(author).toContain(newBlog.author)
       expect(url).toContain(newBlog.url)
     })
+    test('sets likes to 0 if not set', async () => {
+      // eslint-disable-next-line no-unused-vars
+      const { likes, ...newBlog } = helper.listWithOneBlog[0]
+
+      const response = await api
+        .post('/api/blogs')
+        .send(newBlog)
+        .expect(201)
+        .expect('Content-Type', /application\/json/)
+
+      expect(response.body.likes).toBe(0)
+    })
     test('fails with status code 400 if data is invalid', async () => {
     })
   })
