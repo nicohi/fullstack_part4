@@ -6,36 +6,36 @@ const helper = require('./test_helper')
 
 const api = supertest(app)
 
-beforeEach(async () => {
-  await Blog.deleteMany({})
-  const blogObjects = helper.listWithManyBlogs
-    .map(b => new Blog(b))
-  const promiseArray = blogObjects.map(blog => blog.save())
-  await Promise.all(promiseArray)
-})
-
 describe('when there is initially some blogs saved', () => {
-  test('blogs are returned as json', async () => {
-    await api
-      .get('/api/blogs')
-      .expect(200)
-      .expect('Content-Type', /application\/json/)
+  beforeEach(async () => {
+    await Blog.deleteMany({})
+    const blogObjects = helper.listWithManyBlogs
+      .map(b => new Blog(b))
+    const promiseArray = blogObjects.map(blog => blog.save())
+    await Promise.all(promiseArray)
   })
 
-  test('all blogs are returned', async () => {
-    const response = await api
-      .get('/api/blogs')
-      .expect(200)
-      .expect('Content-Type', /application\/json/)
-    expect(response.body).toHaveLength(helper.listWithManyBlogs.length)
-  })
-
-  test('verify that blog posts have unique identifier named "id"', async () => {
-    const response = await api
-      .get('/api/blogs')
-      .expect(200)
-      .expect('Content-Type', /application\/json/)
-    response.body.map(b => expect(b.id).toBeDefined())
+  describe('getting all blogs', () => {
+    test('blogs are returned as json', async () => {
+      await api
+        .get('/api/blogs')
+        .expect(200)
+        .expect('Content-Type', /application\/json/)
+    })
+    test('all blogs are returned', async () => {
+      const response = await api
+        .get('/api/blogs')
+        .expect(200)
+        .expect('Content-Type', /application\/json/)
+      expect(response.body).toHaveLength(helper.listWithManyBlogs.length)
+    })
+    test('verify that blog posts have unique identifier named "id"', async () => {
+      const response = await api
+        .get('/api/blogs')
+        .expect(200)
+        .expect('Content-Type', /application\/json/)
+      response.body.map(b => expect(b.id).toBeDefined())
+    })
   })
 
   describe('viewing of a specific blog', () => {
@@ -60,22 +60,19 @@ describe('when there is initially some blogs saved', () => {
         .expect(400)
     })
   })
+
   describe('addition of a new blog', () => {
     test('succeeds with valid data', async () => {
       const newBlog = helper.listWithOneBlog[0]
-
       await api
         .post('/api/blogs')
         .send(newBlog)
         .expect(201)
         .expect('Content-Type', /application\/json/)
-
       const response = await api.get('/api/blogs')
-
       const title = response.body.map(r => r.title)
       const author = response.body.map(r => r.author)
       const url = response.body.map(r => r.url)
-
       expect(response.body).toHaveLength(helper.listWithManyBlogs.length + 1)
       expect(title).toContain(newBlog.title)
       expect(author).toContain(newBlog.author)
@@ -84,13 +81,11 @@ describe('when there is initially some blogs saved', () => {
     test('sets likes to 0 if not set', async () => {
       // eslint-disable-next-line no-unused-vars
       const { likes, ...newBlog } = helper.listWithOneBlog[0]
-
       const response = await api
         .post('/api/blogs')
         .send(newBlog)
         .expect(201)
         .expect('Content-Type', /application\/json/)
-
       expect(response.body.likes).toBe(0)
     })
     test('fails with status code 400 if title is missing', async () => {
@@ -112,15 +107,15 @@ describe('when there is initially some blogs saved', () => {
         .expect('Content-Type', /application\/json/)
     })
   })
+
   describe('deletion of a blog', () => {
-    test('succeeds with status code 204 for existing id and 404 for GET of deleted id', async () => {
+    test('succeeds with status code 204 for existing id', async () => {
       const blog = (await helper.blogsInDb())[0]
       await api
         .delete(`/api/blogs/${blog.id}`)
         .expect(204)
-      await api
-        .get(`/api/blogs/${blog.id}`)
-        .expect(404)
+      const blogs = (await helper.blogsInDb())
+      expect(blogs.map(b => b.id)).not.toContain(blog.id)
     })
     test('succeeds with status code 204 for nonexisting id', async () => {
       await api
@@ -134,29 +129,21 @@ describe('when there is initially some blogs saved', () => {
         .expect(400)
     })
   })
+
   describe('adding 1 to likes of an existing blog succeeds', () => {
     test('succeeds with valid data', async () => {
       const blog = (await helper.blogsInDb())[0]
-      const updatedBlog = { ...blog, likes: blog.likes + 1 }
-
+      const blogPlus = { ...blog, likes: blog.likes + 1 }
       await api
-        .put(`/api/blogs/${updatedBlog.id}`)
-        .send(updatedBlog)
+        .put(`/api/blogs/${blogPlus.id}`)
+        .send(blogPlus)
         .expect(200)
         .expect('Content-Type', /application\/json/)
-      const response = await api
-        .get(`/api/blogs/${updatedBlog.id}`)
-        .expect(200)
-        .expect('Content-Type', /application\/json/)
-
-      const title = response.body.title
-      const author = response.body.author
-      const url = response.body.url
-      const likes = response.body.likes
-      expect(likes).toBe(blog.likes + 1)
-      expect(title).toContain(blog.title)
-      expect(author).toContain(blog.author)
-      expect(url).toContain(blog.url)
+      const updatedBlog = (await helper.blogsInDb()).find(b => b.id === blog.id)
+      expect(updatedBlog.likes).toBe(blog.likes + 1)
+      expect(updatedBlog.title).toContain(blog.title)
+      expect(updatedBlog.author).toContain(blog.author)
+      expect(updatedBlog.url).toContain(blog.url)
     })
     test('fails with status code 400 if id is invalid', async () => {
       const blog = (await helper.blogsInDb())[0]
