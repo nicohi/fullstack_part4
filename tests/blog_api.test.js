@@ -39,11 +39,25 @@ describe('when there is initially some blogs saved', () => {
   })
 
   describe('viewing of a specific blog', () => {
-    test('succeeds with valid a valid id', async () => {
+    test('succeeds with a valid id', async () => {
+      const blog = (await helper.blogsInDb())[0]
+      const response = await api
+        .get(`/api/blogs/${blog.id}`)
+        .expect(200)
+        .expect('Content-Type', /application\/json/)
+      expect(response.body.title).toContain(blog.title)
+      expect(response.body.id).toContain(blog.id)
     })
-    test('fails with status code 404 if note does not exist', async () => {
+    test('fails with status code 404 if blog does not exist', async () => {
+      await api
+        .get(`/api/blogs/${(await helper.nonExistingId())}`)
+        .expect(404)
     })
     test('fails with status code 400 if id is invalid', async () => {
+      const invalid = 'abcd'
+      await api
+        .get(`/api/blogs/${invalid}`)
+        .expect(400)
     })
   })
   describe('addition of a new blog', () => {
@@ -79,27 +93,79 @@ describe('when there is initially some blogs saved', () => {
 
       expect(response.body.likes).toBe(0)
     })
-    test('fails with status code 400 if data is invalid', async () => {
+    test('fails with status code 400 if title is missing', async () => {
       // eslint-disable-next-line no-unused-vars
-      const { url, ...newBlog0 } = helper.listWithOneBlog[0]
-      // eslint-disable-next-line no-unused-vars
-      const { title, ...newBlog1 } = helper.listWithOneBlog[0]
-
+      const { title, ...titleless } = helper.listWithOneBlog[0]
       await api
         .post('/api/blogs')
-        .send(newBlog0)
+        .send(titleless)
         .expect(400)
         .expect('Content-Type', /application\/json/)
-
+    })
+    test('fails with status code 400 if url is missing', async () => {
+      // eslint-disable-next-line no-unused-vars
+      const { url, ...urlless } = helper.listWithOneBlog[0]
       await api
         .post('/api/blogs')
-        .send(newBlog0)
+        .send(urlless)
         .expect(400)
         .expect('Content-Type', /application\/json/)
     })
   })
   describe('deletion of a blog', () => {
-    test('succeeds with status code 200', async () => {
+    test('succeeds with status code 204 for existing id and 404 for GET of deleted id', async () => {
+      const blog = (await helper.blogsInDb())[0]
+      await api
+        .delete(`/api/blogs/${blog.id}`)
+        .expect(204)
+      await api
+        .get(`/api/blogs/${blog.id}`)
+        .expect(404)
+    })
+    test('succeeds with status code 204 for nonexisting id', async () => {
+      await api
+        .delete(`/api/blogs/${(await helper.nonExistingId())}`)
+        .expect(204)
+    })
+    test('fails with status code 400 if id is invalid', async () => {
+      const invalid = 'abcd'
+      await api
+        .delete(`/api/blogs/${invalid}`)
+        .expect(400)
+    })
+  })
+  describe('adding 1 to likes of an existing blog succeeds', () => {
+    test('succeeds with valid data', async () => {
+      const blog = (await helper.blogsInDb())[0]
+      const updatedBlog = { ...blog, likes: blog.likes + 1 }
+
+      await api
+        .put(`/api/blogs/${updatedBlog.id}`)
+        .send(updatedBlog)
+        .expect(200)
+        .expect('Content-Type', /application\/json/)
+      const response = await api
+        .get(`/api/blogs/${updatedBlog.id}`)
+        .expect(200)
+        .expect('Content-Type', /application\/json/)
+
+      const title = response.body.title
+      const author = response.body.author
+      const url = response.body.url
+      const likes = response.body.likes
+      expect(likes).toBe(blog.likes + 1)
+      expect(title).toContain(blog.title)
+      expect(author).toContain(blog.author)
+      expect(url).toContain(blog.url)
+    })
+    test('fails with status code 400 if id is invalid', async () => {
+      const blog = (await helper.blogsInDb())[0]
+      const updatedBlog = { ...blog, id: 'aaaaa', likes: blog.likes + 1 }
+
+      await api
+        .put(`/api/blogs/${updatedBlog.id}`)
+        .send(updatedBlog)
+        .expect(400)
     })
   })
 })

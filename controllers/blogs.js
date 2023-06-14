@@ -7,9 +7,24 @@ blogsRouter.get('/', async (request, response) => {
 })
 
 blogsRouter.get('/:id', async (request, response) => {
-  const blogs = await Blog.findById(request.props.id) 
-  response.json(blogs)
+  const blog = await Blog.findById(request.params.id) 
+  if (blog) response.json(blog)
+  else response.status(404).end()
 })
+
+blogsRouter.delete('/:id', async (request, response) => {
+  const result = await Blog.findByIdAndRemove(request.params.id)
+  response.status(204).end()
+})
+
+blogsRouter.put('/:id', async (request, response) => {
+  const blog = request.body
+  const updatedBlog = await Blog.findByIdAndUpdate(request.params.id,
+                                                   blog,
+                                                   { new: true, runValidators: true, context: 'query' })
+  response.json(updatedBlog)
+})
+
 
 blogsRouter.post('/', async (request, response) => {
   const blog = new Blog(request.body)
