@@ -1,5 +1,9 @@
 const mongoose = require('mongoose')
 
+// Simplify comparing of ObjectId
+// https://thecodebarbarian.com/whats-new-in-mongoose-54-global-schematype-configuration.html#schematype-getters
+mongoose.ObjectId.get(v => v.toString())
+
 const blogSchema = new mongoose.Schema({
   title: {
     type: String,
