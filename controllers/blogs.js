@@ -5,16 +5,19 @@ const Blog = require('../models/blog')
 const User = require('../models/user')
 const config = require('../utils/config')
 
+const checkToken = (request, response, next) => {
+  if (request.user) return next()
+  return response.status(401).json({ error: 'token invalid' })
+}
+
 const checkUserCanModify = async (request, response, next) => {
   request.canModifyBlog = false
-  if (request.user) {
-    const blog = await Blog.findById(request.params.id)
-    const blogUserId = blog.user.toString()
-    request.canModifyBlog = request.user === blogUserId
-    if (request.canModifyBlog) return next()
-  } else {
-    return response.status(401).json({ error: 'token invalid' })
-  }
+  const blog = await Blog.findById(request.params.id)
+  if (!blog) return next()
+  const blogUserId = blog.user.toString()
+  request.canModifyBlog = request.user === blogUserId
+  if (request.canModifyBlog) return next()
+
   return response.status(401).json({ error: 'blog owned by different user' })
 }
 
@@ -31,12 +34,18 @@ blogsRouter.get('/:id', async (request, response) => {
   else response.status(404).end()
 })
 
-blogsRouter.delete('/:id', checkUserCanModify, async (request, response) => {
+blogsRouter.delete('/:id',
+                   checkToken,
+                   checkUserCanModify,
+                   async (request, response) => {
   const result = await Blog.findByIdAndRemove(request.params.id)
   response.status(204).end()
 })
 
-blogsRouter.put('/:id', checkUserCanModify, async (request, response) => {
+blogsRouter.put('/:id',
+                checkToken,
+                checkUserCanModify,
+                async (request, response) => {
   const blog = request.body
   const updatedBlog = await Blog.findByIdAndUpdate(request.params.id,
                                                    blog,
