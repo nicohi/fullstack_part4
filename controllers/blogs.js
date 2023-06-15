@@ -7,15 +7,11 @@ const config = require('../utils/config')
 
 const checkUserCanModify = async (request, response, next) => {
   request.canModifyBlog = false
-  if (request.params.id && request.token) {
-    const decodedToken = jwt.verify(request.token, config.SECRET)
-    if (decodedToken.id) {
-      const user = await User.findById(decodedToken.id)
-      const blog = await Blog.findById(request.params.id)
-      const userId = user.id.toString()
-      const blogUserId = blog.user.toString()
-      request.canModifyBlog = userId === blogUserId
-    }
+
+  if (request.user) {
+    const blog = await Blog.findById(request.params.id)
+    const blogUserId = blog.user.toString()
+    request.canModifyBlog = request.user === blogUserId
   }
   next()
 }
@@ -34,6 +30,9 @@ blogsRouter.get('/:id', async (request, response) => {
 })
 
 blogsRouter.delete('/:id', checkUserCanModify, async (request, response) => {
+  if (!request.user) {
+    return response.status(401).json({ error: 'token invalid' })
+  }
   if (!request.canModifyBlog) {
     return response.status(401).json({ error: 'blog owned by different user' })
   }
@@ -42,8 +41,7 @@ blogsRouter.delete('/:id', checkUserCanModify, async (request, response) => {
 })
 
 blogsRouter.put('/:id', checkUserCanModify, async (request, response) => {
-  const decodedToken = jwt.verify(request.token, config.SECRET)
-  if (!decodedToken.id) {
+  if (!request.user) {
     return response.status(401).json({ error: 'token invalid' })
   }
   if (!request.canModifyBlog) {
@@ -57,11 +55,10 @@ blogsRouter.put('/:id', checkUserCanModify, async (request, response) => {
 })
 
 blogsRouter.post('/', async (request, response) => {
-  const decodedToken = jwt.verify(request.token, config.SECRET)
-  if (!decodedToken.id) {
+  if (!request.user) {
     return response.status(401).json({ error: 'token invalid' })
   }
-  const user = (await User.findById(decodedToken.id)).toJSON()
+  const user = (await User.findById(request.user)).toJSON()
   const blog = new Blog({ ...request.body, user: user.id })
 
   const result = await blog.save()
